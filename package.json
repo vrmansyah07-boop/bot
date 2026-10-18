@@ -1,0 +1,9 @@
+{
+  "name": "streamvox-yt",
+  "version": "1.0.0",
+  "description": "YouTube LiveChat Alert & TTS Studio",
+  "main": "index.js",
+  "scripts": {
+    "local": "node local-server.js"
+  }
+}
