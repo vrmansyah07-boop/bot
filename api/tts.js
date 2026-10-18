@@ -85,6 +85,7 @@ module.exports = async function handler(req, res) {
     res.statusCode = 200;
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Content-Length', finalBuffer.length);
+    res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'public, s-maxage=86400, max-age=86400');
     
     // Support both Vercel helper and native end
