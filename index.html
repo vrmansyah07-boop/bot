@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -63,7 +64,34 @@
             <span class="card-icon">🔴</span>
             Koneksi YouTube Live
           </div>
-          <span id="connection-mode-badge" class="badge-owner chat-badge">API v3</span>
+          <span id="connection-mode-badge" class="badge-owner chat-badge">Google OAuth</span>
+        </div>
+
+        <!-- Google One-Click Login -->
+        <div id="google-login-container" style="margin-bottom: 14px;">
+          <button id="btn-google-login" class="btn btn-block" style="background: #ffffff; color: #1e293b; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13.5px; padding: 11px 16px; border-radius: 8px; box-shadow: 0 4px 15px rgba(255,255,255,0.12); cursor: pointer; border: none; width: 100%;">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+            <span id="google-login-btn-text">Masuk dengan Akun Google (Otomatis)</span>
+          </button>
+
+          <div id="google-profile-box" style="display: none; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <img id="google-user-avatar" src="" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #10b981;">
+              <div>
+                <div id="google-user-name" style="font-size: 13px; font-weight: 700; color: #fff;">Nama Channel</div>
+                <div style="font-size: 11px; color: #6ee7b7;">● Terhubung dengan Akun Google</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button id="btn-recheck-live" class="btn btn-primary btn-sm" style="font-size: 11px;" title="Cari ulang siaran live">🔄 Cek Live</button>
+              <button id="btn-google-logout" class="btn btn-secondary btn-sm" style="font-size: 11px;">Keluar</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin: 8px 0 14px; font-size: 11px; font-weight: 700; color: var(--text-muted); position: relative;">
+          <span style="background: var(--bg-card); padding: 0 10px; position: relative; z-index: 1;">ATAU CARA MANUAL</span>
+          <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-card); z-index: 0;"></div>
         </div>
 
         <div class="form-group">

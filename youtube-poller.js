@@ -4,6 +4,7 @@
 class YouTubePoller {
   constructor() {
     this.apiKey = '';
+    this.accessToken = '';
     this.videoId = '';
     this.liveChatId = '';
     this.nextPageToken = '';
@@ -124,16 +125,101 @@ class YouTubePoller {
     return streamInfo;
   }
 
+  async connectWithOAuth(accessToken) {
+    this.stop();
+    this.accessToken = accessToken;
+    this.apiKey = '';
+
+    if (this.onStatusChange) {
+      this.onStatusChange('connecting', { mode: 'oauth' });
+    }
+
+    // 1. Fetch active live broadcasts on user's channel
+    let broadcastData;
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/liveBroadcasts?broadcastStatus=active&broadcastType=all&part=id,snippet`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `HTTP ${res.status}`);
+      }
+      broadcastData = await res.json();
+    } catch (e) {
+      throw new Error(`Gagal mencari siaran live aktif: ${e.message}`);
+    }
+
+    let broadcast = null;
+    if (broadcastData.items && broadcastData.items.length > 0) {
+      broadcast = broadcastData.items[0];
+    } else {
+      // Check upcoming broadcasts if none currently active
+      try {
+        const urlUpcoming = `https://www.googleapis.com/youtube/v3/liveBroadcasts?broadcastStatus=upcoming&broadcastType=all&part=id,snippet`;
+        const resUp = await fetch(urlUpcoming, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (resUp.ok) {
+          const upData = await resUp.json();
+          if (upData.items && upData.items.length > 0) {
+            broadcast = upData.items[0];
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (!broadcast) {
+      throw new Error('Tidak ada siaran live yang sedang aktif atau terjadwal di channel YouTube Anda. Silakan mulai live streaming Anda di YouTube Studio terlebih dahulu!');
+    }
+
+    const liveChatId = broadcast.snippet?.liveChatId;
+    if (!liveChatId) {
+      throw new Error('Siaran ini ditemukan, tetapi Live Chat belum aktif atau dinonaktifkan.');
+    }
+
+    this.liveChatId = liveChatId;
+    this.videoId = broadcast.id;
+    this.seenMessageIds.clear();
+    this.isFirstFetch = true;
+    this.nextPageToken = '';
+    this.isRunning = true;
+
+    const streamInfo = {
+      title: broadcast.snippet?.title || 'Live Stream',
+      channelTitle: broadcast.snippet?.channelTitle || 'Channel Anda',
+      thumbnail: broadcast.snippet?.thumbnails?.medium?.url || broadcast.snippet?.thumbnails?.default?.url || '',
+      liveChatId: this.liveChatId,
+      videoId: this.videoId,
+      isOAuth: true
+    };
+
+    if (this.onStatusChange) {
+      this.onStatusChange('connected', streamInfo);
+    }
+
+    this.pollLoop();
+    return streamInfo;
+  }
+
   async pollLoop() {
     if (!this.isRunning) return;
 
     try {
-      let chatUrl = `https://www.googleapis.com/youtube/v3/liveChatMessages?liveChatId=${this.liveChatId}&part=snippet,authorDetails&key=${this.apiKey}`;
+      let chatUrl = `https://www.googleapis.com/youtube/v3/liveChatMessages?liveChatId=${this.liveChatId}&part=snippet,authorDetails`;
+      if (this.apiKey) {
+        chatUrl += `&key=${this.apiKey}`;
+      }
       if (this.nextPageToken) {
         chatUrl += `&pageToken=${encodeURIComponent(this.nextPageToken)}`;
       }
 
-      const res = await fetch(chatUrl);
+      const headers = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const res = await fetch(chatUrl, { headers });
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
         const msg = errJson.error?.message || `HTTP ${res.status}`;

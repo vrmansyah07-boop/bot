@@ -18,6 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const audioUnlockBanner = document.getElementById('audio-unlock-banner');
   const btnUnlockAudio = document.getElementById('btn-unlock-audio');
 
+  const btnGoogleLogin = document.getElementById('btn-google-login');
+  const googleLoginBtnText = document.getElementById('google-login-btn-text');
+  const googleProfileBox = document.getElementById('google-profile-box');
+  const googleUserAvatar = document.getElementById('google-user-avatar');
+  const googleUserName = document.getElementById('google-user-name');
+  const btnGoogleLogout = document.getElementById('btn-google-logout');
+  const btnRecheckLive = document.getElementById('btn-recheck-live');
+
   const ytVideoInput = document.getElementById('yt-video-input');
   const ytApiKey = document.getElementById('yt-api-key');
   const btnConnect = document.getElementById('btn-connect');
@@ -498,6 +506,111 @@ document.addEventListener('DOMContentLoaded', () => {
       tts.enqueue(chatItem.author, chatItem.message, chatItem);
     }
   }
+
+  // --- GOOGLE OAUTH 2.0 LOGIN ---
+  const GOOGLE_CLIENT_ID = '753097274991-m2oij1eqoap4148ii0168pp5ocktapue.apps.googleusercontent.com';
+  let googleTokenClient = null;
+  let currentGoogleToken = null;
+
+  async function handleGoogleToken(token) {
+    currentGoogleToken = token;
+    unlockAudioEngine();
+
+    // 1. Fetch channel profile info
+    try {
+      const channelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (channelRes.ok) {
+        const chanData = await channelRes.json();
+        if (chanData.items && chanData.items.length > 0) {
+          const ch = chanData.items[0];
+          googleUserName.textContent = ch.snippet?.title || 'Channel YouTube Anda';
+          if (ch.snippet?.thumbnails?.default?.url) {
+            googleUserAvatar.src = ch.snippet.thumbnails.default.url;
+          }
+          btnGoogleLogin.style.display = 'none';
+          googleProfileBox.style.display = 'flex';
+        }
+      }
+    } catch (e) {
+      console.warn('Channel fetch error:', e);
+    }
+
+    // 2. Automatically find and connect to active live broadcast!
+    try {
+      showToast('Mencari siaran live aktif di channel Anda...', 'info');
+      const info = await poller.connectWithOAuth(token);
+      showToast(`Terhubung ke siaran: ${info.title}`, 'success');
+      updateObsUrl();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  function initGoogleOAuth() {
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+      setTimeout(initGoogleOAuth, 600);
+      return;
+    }
+
+    try {
+      googleTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/youtube.readonly',
+        callback: (tokenResponse) => {
+          if (tokenResponse.error) {
+            showToast('Login Google dibatalkan atau gagal: ' + tokenResponse.error, 'error');
+            googleLoginBtnText.textContent = 'Masuk dengan Akun Google (Otomatis)';
+            return;
+          }
+          handleGoogleToken(tokenResponse.access_token);
+        }
+      });
+    } catch (err) {
+      console.warn('Google client init err:', err);
+    }
+  }
+
+  initGoogleOAuth();
+
+  btnGoogleLogin.addEventListener('click', () => {
+    unlockAudioEngine();
+    if (!googleTokenClient) {
+      showToast('Menyiapkan login Google...', 'info');
+      initGoogleOAuth();
+      setTimeout(() => {
+        if (googleTokenClient) googleTokenClient.requestAccessToken();
+      }, 700);
+      return;
+    }
+    googleLoginBtnText.textContent = 'Menghubungkan ke Google...';
+    googleTokenClient.requestAccessToken();
+  });
+
+  btnRecheckLive.addEventListener('click', async () => {
+    unlockAudioEngine();
+    if (!currentGoogleToken) {
+      showToast('Silakan login terlebih dahulu.', 'error');
+      return;
+    }
+    try {
+      showToast('Mencari siaran live...', 'info');
+      await poller.connectWithOAuth(currentGoogleToken);
+      showToast('Berhasil terhubung ke live chat!', 'success');
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  });
+
+  btnGoogleLogout.addEventListener('click', () => {
+    poller.stop();
+    currentGoogleToken = null;
+    googleProfileBox.style.display = 'none';
+    btnGoogleLogin.style.display = 'flex';
+    googleLoginBtnText.textContent = 'Masuk dengan Akun Google (Otomatis)';
+    showToast('Berhasil logout dari akun Google.', 'info');
+  });
 
   // --- CONNECT / DISCONNECT BUTTON ---
   btnConnect.addEventListener('click', async () => {
