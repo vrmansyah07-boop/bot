@@ -1,11 +1,9 @@
 {
   "name": "streamvox-yt",
   "version": "1.0.0",
-  "description": "YouTube LiveChat Alert & Natural Voice TTS Studio ala Streamlabs",
-  "main": "server.js",
+  "description": "YouTube LiveChat Alert & TTS Studio",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "local": "node local-server.js"
   },
   "keywords": [
     "youtube",
@@ -13,8 +11,7 @@
     "tts",
     "streamlabs",
     "obs",
-    "streamer",
-    "alert"
+    "streamer"
   ],
   "author": "StreamVox",
   "license": "MIT"
