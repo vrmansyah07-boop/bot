@@ -24,9 +24,15 @@ class SoundEffects {
     this.volume = Math.max(0, Math.min(1, val));
   }
 
-  play(soundType = 'cyber-ding', customVolume = null) {
+  async play(soundType = 'cyber-ding', customVolume = null) {
     this.init();
     if (!this.audioCtx) return;
+
+    if (this.audioCtx.state === 'suspended') {
+      try {
+        await this.audioCtx.resume();
+      } catch (e) {}
+    }
 
     const vol = customVolume !== null ? customVolume : this.volume;
     if (vol <= 0) return;

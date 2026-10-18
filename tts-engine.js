@@ -200,17 +200,37 @@ class TTSEngine {
   }
 
   playNaturalAudio(item) {
+    let finished = false;
+    let safetyTimer = null;
+
     const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (safetyTimer) clearTimeout(safetyTimer);
       this.isSpeaking = false;
       this.currentAudio = null;
       if (this.onSpeakEnd) this.onSpeakEnd(item);
       if (this.onStatusChange) this.onStatusChange('idle');
-      setTimeout(() => this.processQueue(), 250);
+      setTimeout(() => this.processQueue(), 200);
     };
+
+    // Safety timeout: Never let the queue get stuck for more than 8.5 seconds
+    safetyTimer = setTimeout(() => {
+      if (!finished) {
+        console.warn('Natural TTS playback safety timeout');
+        finish();
+      }
+    }, 8500);
 
     try {
       const ttsUrl = `/api/tts?lang=id&text=${encodeURIComponent(item.speechText)}`;
-      const audio = new Audio(ttsUrl);
+      let audio = document.getElementById('streamvox-audio-player');
+      if (!audio) {
+        audio = new Audio();
+        audio.id = 'streamvox-audio-player';
+        document.body.appendChild(audio);
+      }
+
       this.currentAudio = audio;
       audio.volume = this.volume;
 
@@ -219,22 +239,32 @@ class TTSEngine {
         audio.playbackRate = Math.max(0.75, Math.min(1.5, this.rate));
       }
 
-      audio.onended = finish;
+      audio.onended = () => finish();
       audio.onerror = (e) => {
         console.warn('Natural audio fetch failed, falling back to browser speech:', e);
-        this.playBrowserSpeech(item);
+        if (!finished) {
+          if (safetyTimer) clearTimeout(safetyTimer);
+          this.playBrowserSpeech(item);
+        }
       };
 
+      audio.src = ttsUrl;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          console.warn('Audio play prevented by browser, fallback to synth:', err);
-          this.playBrowserSpeech(item);
+          console.warn('Audio play prevented or interrupted:', err);
+          if (!finished) {
+            if (safetyTimer) clearTimeout(safetyTimer);
+            this.playBrowserSpeech(item);
+          }
         });
       }
     } catch (err) {
       console.warn('Natural audio error:', err);
-      this.playBrowserSpeech(item);
+      if (!finished) {
+        if (safetyTimer) clearTimeout(safetyTimer);
+        this.playBrowserSpeech(item);
+      }
     }
   }
 
@@ -244,35 +274,62 @@ class TTSEngine {
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(item.speechText);
-    utterance.rate = this.rate;
-    utterance.pitch = this.pitch;
-    utterance.volume = this.volume;
-
-    if (this.selectedVoiceURI) {
-      const chosen = this.voices.find(v => v.voiceURI === this.selectedVoiceURI);
-      if (chosen) utterance.voice = chosen;
-    } else {
-      // Auto pick Indonesian natural voice if available
-      const naturalVoice = this.voices.find(v => 
-        (v.name.includes('Natural') || v.name.includes('Online')) && 
-        (v.lang.includes('id') || v.lang.includes('ID'))
-      ) || this.voices.find(v => v.lang.toLowerCase().includes('id'));
-      
-      if (naturalVoice) utterance.voice = naturalVoice;
-    }
+    let finished = false;
+    let safetyTimer = null;
 
     const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (safetyTimer) clearTimeout(safetyTimer);
       this.isSpeaking = false;
       if (this.onSpeakEnd) this.onSpeakEnd(item);
       if (this.onStatusChange) this.onStatusChange('idle');
-      setTimeout(() => this.processQueue(), 250);
+      setTimeout(() => this.processQueue(), 200);
     };
 
-    utterance.onend = finish;
-    utterance.onerror = finish;
+    // Clean any stuck speech in browser
+    try {
+      this.synth.cancel();
+    } catch (e) {}
 
-    this.synth.speak(utterance);
+    safetyTimer = setTimeout(() => {
+      if (!finished) {
+        console.warn('Browser Speech timeout safety triggered');
+        try { this.synth.cancel(); } catch (e) {}
+        finish();
+      }
+    }, 7000);
+
+    try {
+      const utterance = new SpeechSynthesisUtterance(item.speechText);
+      utterance.rate = this.rate;
+      utterance.pitch = this.pitch;
+      utterance.volume = this.volume;
+
+      if (this.selectedVoiceURI) {
+        const chosen = this.voices.find(v => v.voiceURI === this.selectedVoiceURI);
+        if (chosen) utterance.voice = chosen;
+      } else {
+        // Auto pick Indonesian natural voice if available
+        const naturalVoice = this.voices.find(v => 
+          (v.name.includes('Natural') || v.name.includes('Online')) && 
+          (v.lang.includes('id') || v.lang.includes('ID'))
+        ) || this.voices.find(v => v.lang.toLowerCase().includes('id'));
+        
+        if (naturalVoice) utterance.voice = naturalVoice;
+      }
+
+      utterance.onend = () => finish();
+      utterance.onerror = (e) => {
+        console.warn('Browser speech utterance error:', e);
+        finish();
+      };
+
+      this.synth.speak(utterance);
+    } catch (err) {
+      console.warn('Browser speech speak exception:', err);
+      finish();
+    }
   }
 
   stop() {
@@ -285,22 +342,27 @@ class TTSEngine {
       this.currentAudio = null;
     }
     if (this.synth) {
-      this.synth.cancel();
+      try {
+        this.synth.cancel();
+      } catch (e) {}
     }
     this.isSpeaking = false;
     if (this.onStatusChange) this.onStatusChange('stopped', { count: 0 });
   }
 
   unlock() {
-    // Satisfy browser autoplay restriction
+    // Satisfy browser autoplay restriction safely without breaking SpeechSynthesis queue
     try {
-      const dummy = new Audio();
-      dummy.play().catch(() => {});
+      const audioEl = document.getElementById('streamvox-audio-player');
+      if (audioEl) {
+        audioEl.play().catch(() => {});
+      }
     } catch (e) {}
+
     if (this.synth) {
-      const silent = new SpeechSynthesisUtterance('');
-      silent.volume = 0;
-      this.synth.speak(silent);
+      try {
+        this.synth.cancel();
+      } catch (e) {}
     }
   }
 }

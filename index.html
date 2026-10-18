@@ -87,6 +87,10 @@
               <button id="btn-google-logout" class="btn btn-secondary btn-sm" style="font-size: 11px;">Keluar</button>
             </div>
           </div>
+
+          <div style="margin-top: 8px; font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+            💡 <em>Jika baru pertama kali:</em> Pastikan Anda sudah mengaktifkan <a href="https://console.developers.google.com/apis/api/youtube.googleapis.com/overview?project=753097274991" target="_blank" style="color: var(--primary); text-decoration: underline;">YouTube Data API v3 di Google Cloud</a> agar izin membaca live chat terbuka.
+          </div>
         </div>
 
         <div style="text-align: center; margin: 8px 0 14px; font-size: 11px; font-weight: 700; color: var(--text-muted); position: relative;">
@@ -432,6 +436,9 @@
 
   <!-- Toast Container -->
   <div id="toast-container" class="toast-container"></div>
+
+  <!-- Persistent Audio Element for Unlocked Playback -->
+  <audio id="streamvox-audio-player" preload="auto" playsinline style="display:none;"></audio>
 
   <!-- Scripts -->
   <script src="sound-effects.js"></script>

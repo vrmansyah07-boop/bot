@@ -53,6 +53,19 @@ class YouTubePoller {
     return '';
   }
 
+  async fetchWithProxy(url, options = {}) {
+    const proxyUrl = `/api/youtube?url=${encodeURIComponent(url)}`;
+    try {
+      const res = await fetch(proxyUrl, options);
+      if (res.status !== 404) {
+        return res;
+      }
+    } catch (e) {
+      console.warn('Proxy fetch fallback:', e);
+    }
+    return fetch(url, options);
+  }
+
   async connect(apiKey, videoInput) {
     this.stop();
 
@@ -75,7 +88,7 @@ class YouTubePoller {
     
     let videoData;
     try {
-      const res = await fetch(videoUrl);
+      const res = await this.fetchWithProxy(videoUrl);
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
         const msg = errJson.error?.message || `HTTP ${res.status}: Gagal mengambil data video.`;
@@ -138,15 +151,22 @@ class YouTubePoller {
     let broadcastData;
     try {
       const url = `https://www.googleapis.com/youtube/v3/liveBroadcasts?broadcastStatus=active&broadcastType=all&part=id,snippet`;
-      const res = await fetch(url, {
+      const res = await this.fetchWithProxy(url, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error?.message || `HTTP ${res.status}`);
+        const rawMsg = errJson.error?.message || `HTTP ${res.status}`;
+        if (rawMsg.includes('has not been used in project') || rawMsg.includes('is disabled')) {
+          throw new Error('YouTube Data API v3 belum diaktifkan di Google Cloud Project Anda! Klik link di bawah tombol login untuk mengaktifkannya.');
+        }
+        throw new Error(rawMsg);
       }
       broadcastData = await res.json();
     } catch (e) {
+      if (e.message.toLowerCase().includes('fetch')) {
+        throw new Error('Sistem Google sedang memperbarui izin (baru saja di-ENABLE). Silakan tunggu 1 menit, klik "Keluar", lalu Login ulang.');
+      }
       throw new Error(`Gagal mencari siaran live aktif: ${e.message}`);
     }
 
@@ -157,7 +177,7 @@ class YouTubePoller {
       // Check upcoming broadcasts if none currently active
       try {
         const urlUpcoming = `https://www.googleapis.com/youtube/v3/liveBroadcasts?broadcastStatus=upcoming&broadcastType=all&part=id,snippet`;
-        const resUp = await fetch(urlUpcoming, {
+        const resUp = await this.fetchWithProxy(urlUpcoming, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         if (resUp.ok) {
@@ -219,7 +239,7 @@ class YouTubePoller {
         headers['Authorization'] = `Bearer ${this.accessToken}`;
       }
 
-      const res = await fetch(chatUrl, { headers });
+      const res = await this.fetchWithProxy(chatUrl, { headers });
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
         const msg = errJson.error?.message || `HTTP ${res.status}`;

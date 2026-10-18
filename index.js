@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 
 // Static file registry with literal path.join so Vercel's bundler traces and packages every asset
 const STATIC_FILES = {
@@ -17,11 +18,31 @@ const STATIC_FILES = {
 // In-memory cache for ultra fast delivery
 const fileCache = new Map();
 
+// Built-in YouTube Proxy to bypass Browser CORS
+function proxyYouTube(req, res, targetUrl) {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  };
+  if (req.headers && req.headers.authorization) {
+    headers['Authorization'] = req.headers.authorization;
+  }
+
+  https.get(targetUrl, { headers }, (apiRes) => {
+    res.statusCode = apiRes.statusCode;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    apiRes.pipe(res);
+  }).on('error', (err) => {
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: err.message }));
+  });
+}
+
 module.exports = (req, res) => {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range');
 
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
@@ -43,6 +64,18 @@ module.exports = (req, res) => {
       res.end(JSON.stringify({ error: err.message }));
       return;
     }
+  }
+
+  // 1b. Route API YouTube Proxy (Bypasses Browser CORS)
+  if (pathname === '/api/youtube') {
+    const targetUrl = parsedUrl.searchParams.get('url') || '';
+    if (!targetUrl || !targetUrl.startsWith('https://www.googleapis.com/youtube/v3/')) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Parameter url valid diperlukan (hanya googleapis.com/youtube/v3/)' }));
+      return;
+    }
+    return proxyYouTube(req, res, targetUrl);
   }
 
   // 2. Serve Static File from Registry

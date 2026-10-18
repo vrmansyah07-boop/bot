@@ -358,7 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
   btnTestTts.addEventListener('click', () => {
     unlockAudioEngine();
     sfx.play(sfxSoundSelect.value);
-    tts.enqueue('Japuy Streamer', 'Halo semuanya! Ini uji coba suara natural Indonesia. Suaranya terdengar sangat luwes seperti orang asli kan?');
+    setTimeout(() => {
+      tts.enqueue('Japuy Streamer', 'Halo semuanya! Ini uji coba suara natural Indonesia. Suaranya terdengar sangat luwes seperti orang asli kan?');
+    }, 400);
     showToast('Memutar suara natural Indonesia...', 'success');
   });
 
@@ -503,7 +505,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Play Chime & TTS in Dashboard (if enabled)
     if (playTtsInDashboard && !chatItem.skipVoice) {
       sfx.play(sfxSoundSelect.value);
-      tts.enqueue(chatItem.author, chatItem.message, chatItem);
+      setTimeout(() => {
+        tts.enqueue(chatItem.author, chatItem.message, chatItem);
+      }, 400);
     }
   }
 
@@ -516,11 +520,21 @@ document.addEventListener('DOMContentLoaded', () => {
     currentGoogleToken = token;
     unlockAudioEngine();
 
-    // 1. Fetch channel profile info
+    // 1. Fetch channel profile info via proxy to bypass CORS
     try {
-      const channelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const channelUrl = 'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true';
+      const proxyUrl = `/api/youtube?url=${encodeURIComponent(channelUrl)}`;
+      let channelRes;
+      try {
+        channelRes = await fetch(proxyUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (e) {
+        channelRes = await fetch(channelUrl, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+
       if (channelRes.ok) {
         const chanData = await channelRes.json();
         if (chanData.items && chanData.items.length > 0) {
