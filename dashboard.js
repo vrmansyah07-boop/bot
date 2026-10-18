@@ -550,42 +550,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function initGoogleOAuth() {
     if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-      setTimeout(initGoogleOAuth, 600);
+      setTimeout(initGoogleOAuth, 300);
       return;
     }
 
     try {
-      googleTokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/youtube.readonly',
-        callback: (tokenResponse) => {
-          if (tokenResponse.error) {
-            showToast('Login Google dibatalkan atau gagal: ' + tokenResponse.error, 'error');
+      if (!googleTokenClient) {
+        googleTokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'https://www.googleapis.com/auth/youtube.readonly',
+          callback: (tokenResponse) => {
+            if (tokenResponse.error) {
+              console.warn('Google OAuth error:', tokenResponse);
+              showToast('Login Google dibatalkan atau gagal: ' + (tokenResponse.error_description || tokenResponse.error), 'error');
+              googleLoginBtnText.textContent = 'Masuk dengan Akun Google (Otomatis)';
+              return;
+            }
+            handleGoogleToken(tokenResponse.access_token);
+          },
+          error_callback: (err) => {
+            console.error('Google GIS error:', err);
+            showToast('Pop-up login diblokir oleh browser! Silakan izinkan pop-up di bilah URL.', 'error');
             googleLoginBtnText.textContent = 'Masuk dengan Akun Google (Otomatis)';
-            return;
           }
-          handleGoogleToken(tokenResponse.access_token);
-        }
-      });
+        });
+      }
     } catch (err) {
       console.warn('Google client init err:', err);
     }
   }
 
+  // Pre-initialize
   initGoogleOAuth();
 
-  btnGoogleLogin.addEventListener('click', () => {
+  btnGoogleLogin.addEventListener('click', (e) => {
+    e.preventDefault();
     unlockAudioEngine();
-    if (!googleTokenClient) {
-      showToast('Menyiapkan login Google...', 'info');
+
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+      showToast('Sistem login Google sedang dimuat, silakan klik lagi dalam 1 detik...', 'info');
       initGoogleOAuth();
-      setTimeout(() => {
-        if (googleTokenClient) googleTokenClient.requestAccessToken();
-      }, 700);
       return;
     }
-    googleLoginBtnText.textContent = 'Menghubungkan ke Google...';
-    googleTokenClient.requestAccessToken();
+
+    // Ensure client exists
+    if (!googleTokenClient) {
+      initGoogleOAuth();
+    }
+
+    if (googleTokenClient) {
+      googleLoginBtnText.textContent = 'Membuka Google Login...';
+      // MUST be called directly in click handler to avoid browser popup blocking!
+      googleTokenClient.requestAccessToken({ prompt: '' });
+    }
   });
 
   btnRecheckLive.addEventListener('click', async () => {
