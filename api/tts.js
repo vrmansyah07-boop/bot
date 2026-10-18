@@ -26,15 +26,33 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.status(204).end();
+    res.statusCode = 204;
+    res.end();
     return;
   }
 
-  const text = (req.query.text || '').trim();
-  const lang = (req.query.lang || 'id').trim();
+  // Safe parameter extraction (supports both Vercel req.query and native URL parsing)
+  let text = '';
+  let lang = 'id';
+
+  if (req.query && req.query.text) {
+    text = req.query.text;
+    lang = req.query.lang || 'id';
+  } else if (req.url) {
+    try {
+      const parsedUrl = new URL(req.url, 'http://localhost');
+      text = parsedUrl.searchParams.get('text') || '';
+      lang = parsedUrl.searchParams.get('lang') || 'id';
+    } catch (e) {}
+  }
+
+  text = text.trim();
+  lang = lang.trim();
 
   if (!text) {
-    res.status(400).json({ error: 'Parameter text diperlukan' });
+    res.statusCode = 400;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: 'Parameter text diperlukan' }));
     return;
   }
 
@@ -64,12 +82,21 @@ module.exports = async function handler(req, res) {
 
     const finalBuffer = Buffer.concat(buffers);
 
+    res.statusCode = 200;
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Content-Length', finalBuffer.length);
     res.setHeader('Cache-Control', 'public, s-maxage=86400, max-age=86400');
-    res.status(200).send(finalBuffer);
+    
+    // Support both Vercel helper and native end
+    if (typeof res.send === 'function') {
+      res.send(finalBuffer);
+    } else {
+      res.end(finalBuffer);
+    }
   } catch (err) {
     console.error('Vercel Serverless TTS error:', err);
-    res.status(500).json({ error: err.message });
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: err.message }));
   }
 };
