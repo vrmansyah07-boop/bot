@@ -1,0 +1,8 @@
+node_modules
+.vercel
+*.log
+.DS_Store
+*.mp3
+*.exe
+cloudflared.exe
+start.bat

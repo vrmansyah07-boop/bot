@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamVox YT - YouTube LiveChat Alert & TTS Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo">🎙️</div>
+        <div class="brand-info">
+          <h1>StreamVox YT</h1>
+          <p>YouTube LiveChat Alert & Otomatis Baca Chat (TTS Streamlabs Edition)</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div id="live-status-pill" class="status-pill offline">
+          <span class="status-dot"></span>
+          <span id="live-status-text">OFFLINE</span>
+        </div>
+
+        <button id="btn-open-overlay" class="btn btn-secondary btn-sm" title="Buka Overlay OBS di tab baru untuk preview">
+          👁️ Preview Overlay
+        </button>
+
+        <button id="btn-obs-guide" class="btn btn-primary btn-sm" title="Cara pasang di OBS Studio">
+          🎥 Pasang di OBS
+        </button>
+
+        <button id="btn-api-guide" class="btn btn-secondary btn-sm" title="Panduan API Key YouTube">
+          🔑 Panduan API Key
+        </button>
+      </div>
+    </header>
+
+    <!-- Audio Unlock Banner (If browser requires user interaction for sound) -->
+    <div id="audio-unlock-banner" class="audio-alert-banner">
+      <p>
+        <span>⚠️</span> 
+        Browser membutuhkan izin interaksi Anda agar suara Text-to-Speech (TTS) dan notifikasi berbunyi otomatis.
+      </p>
+      <button id="btn-unlock-audio" class="btn btn-accent btn-sm">
+        🔊 Aktifkan Suara Audio
+      </button>
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+
+      <!-- CARD 1: KONEKSI YOUTUBE -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-icon">🔴</span>
+            Koneksi YouTube Live
+          </div>
+          <span id="connection-mode-badge" class="badge-owner chat-badge">API v3</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="yt-video-input">
+            URL atau ID Video Live Streaming
+          </label>
+          <input 
+            type="text" 
+            id="yt-video-input" 
+            class="form-control" 
+            placeholder="https://youtube.com/live/xxxx atau ID video"
+          >
+          <span class="form-hint">Mendukung link: youtube.com/live/..., youtube.com/watch?v=..., atau ID 11 karakter.</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="yt-api-key">
+            YouTube Data API v3 Key
+            <a href="#" id="link-show-api-guide" style="color: var(--primary); text-decoration: none; font-size: 11px;">Cara dapatkan gratis?</a>
+          </label>
+          <div style="position: relative;">
+            <input 
+              type="password" 
+              id="yt-api-key" 
+              class="form-control" 
+              placeholder="AIzaSy..."
+            >
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <button id="btn-connect" class="btn btn-primary" style="flex: 1;">
+            ⚡ Hubungkan Live Chat
+          </button>
+          <button id="btn-simulation" class="btn btn-accent" title="Coba simulasi demo jika sedang tidak live">
+            🎮 Mode Simulasi
+          </button>
+        </div>
+
+        <div id="stream-info-box" class="stream-info-card" style="display: none;">
+          <img id="stream-thumb" class="stream-thumb" src="" alt="Thumbnail">
+          <div class="stream-details">
+            <div id="stream-title" class="stream-title">Menunggu koneksi...</div>
+            <div id="stream-channel" class="stream-channel">-</div>
+            <div id="stream-chat-id" style="font-size: 11px; color: var(--accent-green); margin-top: 4px;">● Live Chat Aktif</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 2: PENGATURAN SUARA TTS -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-icon">🗣️</span>
+            Pengaturan Suara (TTS)
+          </div>
+          <button id="btn-panic-stop" class="btn btn-danger btn-sm" title="Hentikan suara yang sedang berbunyi">
+            ⏹️ Stop Suara
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tts-engine-mode">
+            Model Suara (Voice Engine)
+            <span style="font-size: 11px; color: var(--accent-green); font-weight: 700;">● Suara Manusia Asli</span>
+          </label>
+          <select id="tts-engine-mode" class="form-select">
+            <option value="natural-indonesia" selected>🌟 Suara Natural Manusia (Google Cloud ID - Sangat Alami)</option>
+            <option value="browser-speech">💻 Suara Browser Lokal / Offline (Microsoft SAPI)</option>
+          </select>
+          <div style="margin-top: 6px; padding: 6px 10px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; font-size: 11px; color: #a7f3d0; line-height: 1.4;">
+            ✨ <strong>Kamus Gaul Streamer Aktif</strong>: Singkatan penonton (<em>mabar, bgt, yg, udh, gg, ez, wkwk</em>) otomatis diubah jadi bahasa lisan alami agar intonasi terdengar seperti orang Indonesia asli!
+          </div>
+        </div>
+
+        <div class="form-group" id="group-browser-voice" style="display: none;">
+          <label class="form-label" for="tts-voice-select">Pilih Suara Browser Offline</label>
+          <select id="tts-voice-select" class="form-select">
+            <option value="">Memuat daftar suara...</option>
+          </select>
+          <span class="form-hint">Mendeteksi suara bawaan Windows/Browser (Gadis/Ardi/Google).</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            Kecepatan Bicara (Speed)
+            <span id="val-rate" class="range-val">1.00x</span>
+          </label>
+          <div class="range-wrap">
+            <input type="range" id="tts-rate" class="range-slider" min="0.75" max="1.4" step="0.05" value="1.0">
+          </div>
+        </div>
+
+        <div class="form-group" id="group-pitch" style="display: none;">
+          <label class="form-label">
+            Nada Suara (Pitch)
+            <span id="val-pitch" class="range-val">1.0x</span>
+          </label>
+          <div class="range-wrap">
+            <input type="range" id="tts-pitch" class="range-slider" min="0.5" max="1.5" step="0.05" value="1.0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            Volume Suara (Volume)
+            <span id="val-volume" class="range-val">100%</span>
+          </label>
+          <div class="range-wrap">
+            <input type="range" id="tts-volume" class="range-slider" min="0" max="1" step="0.05" value="1.0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tts-template-preset">Gaya Intonasi & Pembacaan Chat</label>
+          <select id="tts-template-preset" class="form-select" style="margin-bottom: 6px;">
+            <option value="Dari {author}, {message}">Dari {author}, {message} (Paling Alami)</option>
+            <option value="Komentar dari {author}, {message}">Komentar dari {author}, {message}</option>
+            <option value="{author} berkata, {message}">{author} berkata, {message}</option>
+            <option value="{author}: {message}">{author}: {message}</option>
+            <option value="{message}">Hanya pesan saja (tanpa nama penonton)</option>
+          </select>
+        </div>
+
+        <div style="margin-top: 10px;">
+          <button id="btn-test-tts" class="btn btn-secondary btn-block">
+            ▶️ Uji Coba Suara (Test TTS)
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD 3: ALERT BOX & OBS SETTINGS -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-icon">🔔</span>
+            Alert & Filter Chat
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="sfx-sound-select">Bunyi Efek Suara (Chime Bell)</label>
+          <div style="display: flex; gap: 8px;">
+            <select id="sfx-sound-select" class="form-select" style="flex: 1;">
+              <option value="cyber-ding">Cyber Ding (Modern Synth)</option>
+              <option value="pop-bubble">Bubble Pop (Playful)</option>
+              <option value="retro-game">Retro Game 8-Bit (Arcade)</option>
+              <option value="crystal-bell">Crystal Bell (Bright)</option>
+              <option value="soft-marimba">Soft Marimba (Gentle)</option>
+            </select>
+            <button id="btn-test-sfx" class="btn btn-secondary btn-sm" title="Tes Bunyi Chime">
+              🔔 Tes
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            Durasi Pop-up Alert di Layar
+            <span id="val-duration" class="range-val">6.5 detik</span>
+          </label>
+          <div class="range-wrap">
+            <input type="range" id="alert-duration" class="range-slider" min="3" max="15" step="0.5" value="6.5">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Lokasi Bunyi Suara TTS</label>
+          <select id="tts-location" class="form-select">
+            <option value="dashboard">Bicara di Dashboard Saja (Direkomendasikan)</option>
+            <option value="overlay">Bicara di OBS Browser Source Saja</option>
+            <option value="both">Bicara di Keduanya</option>
+          </select>
+          <span class="form-hint">Memilih "Dashboard Saja" mencegah suara bergema ganda di OBS.</span>
+        </div>
+
+        <div class="form-group" style="padding-top: 6px; border-top: 1px solid var(--border-card);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Filter Kata Kasar / Toxic</span>
+            <input type="checkbox" id="check-badwords" checked style="accent-color: var(--primary); transform: scale(1.2); cursor: pointer;">
+          </div>
+          <span class="form-hint">Otomatis mengganti kata-kata kasar/jorok menjadi 'sensor' saat dibacakan.</span>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">
+            TES CEPAT NOTIFIKASI OBS:
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button id="btn-test-normal" class="btn btn-secondary btn-sm">💬 Chat Biasa</button>
+            <button id="btn-test-member" class="btn btn-secondary btn-sm">⭐ Chat Member</button>
+            <button id="btn-test-mod" class="btn btn-secondary btn-sm">🛡️ Chat Mod</button>
+            <button id="btn-test-super" class="btn btn-secondary btn-sm">💎 Superchat</button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- LIVE CHAT FEED & HISTORY -->
+    <div class="chat-section">
+      <div class="chat-header">
+        <div class="card-title">
+          <span class="card-icon">💬</span>
+          Live Chat Feed & Riwayat Dibacakan
+        </div>
+        <div class="chat-stats">
+          <span>Total Pesan: <strong id="stat-total">0</strong></span>
+          <span>Antrean TTS: <strong id="stat-queue" style="color: var(--accent-yellow);">0</strong></span>
+          <span>Status Suara: <strong id="stat-speaking" style="color: var(--accent-green);">Siap</strong></span>
+          <button id="btn-clear-chat" class="btn btn-secondary btn-sm" style="margin-left: 10px;">
+            🗑️ Bersihkan
+          </button>
+        </div>
+      </div>
+
+      <div id="chat-feed" class="chat-feed-box">
+        <div class="empty-chat" id="chat-empty">
+          <div class="empty-chat-icon">📺</div>
+          <p>Belum ada chat yang masuk.<br>Hubungkan live stream YouTube Anda atau klik <strong>Mode Simulasi</strong> / <strong>Tes Cepat</strong> di atas.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: OBS STUDIO SETUP GUIDE -->
+  <div id="modal-obs" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">🎥 Cara Memasang di OBS Studio</div>
+        <button class="modal-close" id="btn-close-obs-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+          Gunakan link di bawah ini sebagai <strong>Browser Source</strong> di OBS Studio untuk menampilkan pop-up animasi notifikasi chat secara transparan di live streaming Anda.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">URL Browser Source OBS</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="obs-source-url" class="form-control" readonly value="http://localhost:3030/overlay.html">
+            <button id="btn-copy-obs-url" class="btn btn-accent btn-sm">📋 Salin</button>
+          </div>
+        </div>
+
+        <div class="guide-steps" style="margin-top: 20px;">
+          <div class="guide-step">
+            <div class="guide-num">1</div>
+            <div class="guide-text">
+              <h4>Buka OBS Studio</h4>
+              <p>Pada panel <strong>Sources (Sumber)</strong> di OBS, klik tanda <strong>+ (Tambah)</strong> lalu pilih <strong>Browser</strong>.</p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-num">2</div>
+            <div class="guide-text">
+              <h4>Tempelkan URL di atas</h4>
+              <p>Beri nama sumber (misal: <em>Alert Chat TTS</em>), lalu paste URL di kolom <strong>URL</strong>.</p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-num">3</div>
+            <div class="guide-text">
+              <h4>Atur Ukuran Resolusi</h4>
+              <p>Ubah ukuran menjadi: <strong>Width (Lebar): 650</strong> dan <strong>Height (Tinggi): 220</strong>.</p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-num">4</div>
+            <div class="guide-text">
+              <h4>Selesai!</h4>
+              <p>Pindahkan kotak alert ke posisi layar yang Anda sukai di preview OBS Studio Anda. Latar belakang sudah 100% transparan otomatis!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btn-done-obs-modal">Tutup & Paham</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: YOUTUBE API KEY GUIDE -->
+  <div id="modal-api" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">🔑 Cara Mendapatkan YouTube Data API v3 Key Gratis</div>
+        <button class="modal-close" id="btn-close-api-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+          Google menyediakan kuota gratis setiap hari (10.000 unit/hari) untuk membaca live chat YouTube resmi. Ikuti 4 langkah cepat ini:
+        </p>
+
+        <div class="guide-steps">
+          <div class="guide-step">
+            <div class="guide-num">1</div>
+            <div class="guide-text">
+              <h4>Buka Google Cloud Console</h4>
+              <p>Kunjungi <a href="https://console.cloud.google.com/" target="_blank" style="color: var(--primary);">console.cloud.google.com</a> dan login dengan akun Google Anda.</p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-num">2</div>
+            <div class="guide-text">
+              <h4>Buat Project Baru</h4>
+              <p>Klik menu project di bagian kiri atas, pilih <strong>New Project</strong>, beri nama misalnya <em>"StreamAlerts"</em>, lalu klik <strong>Create</strong>.</p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-num">3</div>
+            <div class="guide-text">
+              <h4>Aktifkan "YouTube Data API v3"</h4>
+              <p>Di kolom pencarian paling atas ketik <strong>YouTube Data API v3</strong>, klik hasil tersebut, lalu klik tombol biru <strong>ENABLE</strong>.</p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-num">4</div>
+            <div class="guide-text">
+              <h4>Buat Kredensial API Key</h4>
+              <p>Buka tab <strong>Credentials</strong> di menu kiri, klik <strong>+ CREATE CREDENTIALS</strong> &rarr; pilih <strong>API key</strong>. Salin kode API key (berawalan <code>AIzaSy...</code>) dan tempelkan ke dashboard StreamVox ini.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btn-done-api-modal">Mengerti</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="sound-effects.js"></script>
+  <script src="tts-engine.js"></script>
+  <script src="youtube-poller.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
